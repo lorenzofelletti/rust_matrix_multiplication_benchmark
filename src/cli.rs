@@ -13,11 +13,11 @@ pub struct Cli {
     /// Number of iterations to run the benchmark
     pub iterations: usize,
 
-    #[arg(short, long, default_value_t = 4)]
-    /// Number of threads to use for parallel matrix multiplication
-    pub threads: usize,
+    #[arg(short, long)]
+    /// Number of threads to use for parallel matrix multiplication [default: number of logical cores]
+    pub threads: Option<usize>,
 
-    #[arg(long, action = clap::ArgAction::SetTrue)]
+    #[arg(short, long, action = clap::ArgAction::SetTrue)]
     /// Only run parallel matrix multiplication
     pub parallel_only: bool,
 
