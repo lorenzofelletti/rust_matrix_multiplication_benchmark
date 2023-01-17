@@ -1,12 +1,10 @@
-use log::error;
-
 use thread_pool::ThreadPool;
 use types::{MatrixRowMutPtr, MatrixRowPtr};
 
 use crate::{thread_pool, zero_filled_square_matrix_of_size};
 
 use self::{
-    sanitize::{sanitize_matrices, SanitizeResult},
+    sanitize::{sanitize_matrices, SanitizeError},
     types::SquareMatrixPtr,
 };
 
@@ -17,14 +15,8 @@ mod types;
 pub fn matrix_multiplication_sequential_ijk(
     a: &Vec<Vec<i32>>,
     b: &Vec<Vec<i32>>,
-) -> Option<Vec<Vec<i32>>> {
-    match sanitize_matrices(a, b) {
-        SanitizeResult::Ok => (),
-        SanitizeResult::NotOk(error) => {
-            error!("Error: {:?}", error);
-            return None;
-        }
-    };
+) -> Result<Vec<Vec<i32>>, SanitizeError> {
+    sanitize_matrices(a, b)?;
 
     let size = a.len();
 
@@ -38,20 +30,14 @@ pub fn matrix_multiplication_sequential_ijk(
         }
     }
 
-    Some(c)
+    Ok(c)
 }
 
 pub fn matrix_multiplication_sequential_ikj(
     a: &Vec<Vec<i32>>,
     b: &Vec<Vec<i32>>,
-) -> Option<Vec<Vec<i32>>> {
-    match sanitize_matrices(a, b) {
-        SanitizeResult::Ok => (),
-        SanitizeResult::NotOk(error) => {
-            error!("Error: {:?}", error);
-            return None;
-        }
-    };
+) -> Result<Vec<Vec<i32>>, SanitizeError> {
+    sanitize_matrices(a, b)?;
 
     let size = a.len();
 
@@ -65,21 +51,15 @@ pub fn matrix_multiplication_sequential_ikj(
         }
     }
 
-    Some(c)
+    Ok(c)
 }
 
 pub fn matrix_multiplication_parallel_i_loop(
     a: &Vec<Vec<i32>>,
     b: &Vec<Vec<i32>>,
     preferred_number_of_threads: usize,
-) -> Option<Vec<Vec<i32>>> {
-    match sanitize_matrices(a, b) {
-        SanitizeResult::Ok => (),
-        SanitizeResult::NotOk(error) => {
-            error!("Error: {:?}", error);
-            return None;
-        }
-    };
+) -> Result<Vec<Vec<i32>>, SanitizeError> {
+    sanitize_matrices(a, b)?;
 
     let size = a.len();
 
@@ -106,7 +86,7 @@ pub fn matrix_multiplication_parallel_i_loop(
 
     ThreadPool::terminate(pool);
 
-    Some(c)
+    Ok(c)
 }
 
 #[cfg(test)]
