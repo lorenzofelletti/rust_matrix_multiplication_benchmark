@@ -48,8 +48,8 @@ impl ThreadPool {
     /// Execute a function in the thread pool.
     /// The function will be executed in one of the threads in the pool.
     pub fn execute<F>(&self, f: F)
-    where
-        F: FnOnce() + Send + 'static,
+        where
+            F: FnOnce() + Send + 'static,
     {
         let job = Message::NewJob(Box::new(f));
 
@@ -112,7 +112,7 @@ fn number_of_threads_to_use(desired_size: usize) -> usize {
         NonZeroUsize::new(desired_size).unwrap(),
         |x: &NonZeroUsize, y: &NonZeroUsize| x.cmp(y),
     )
-    .get()
+        .get()
 }
 
 enum Message {
@@ -122,11 +122,8 @@ enum Message {
 
 #[cfg(test)]
 mod tests {
-    use std::{sync::mpsc, thread, time::Duration};
-
-    use log::info;
-
-    use super::ThreadPool;
+    use std::time::Duration;
+    use super::*;
 
     #[test]
     fn it_works() {
@@ -166,5 +163,14 @@ mod tests {
 
         assert_eq!(pool.workers.len(), available_threads - 1);
         ThreadPool::terminate(pool);
+    }
+
+    #[test]
+    fn test_request_zero_threads() {
+        // test panics
+        std::panic::catch_unwind(|| {
+            ThreadPool::new(0);
+        })
+            .expect_err("Should panic");
     }
 }

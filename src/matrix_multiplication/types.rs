@@ -14,9 +14,9 @@ impl SquareMatrixPtr {
     }
 
     /// Get row by index
-    /// 
+    ///
     /// # Panics
-    /// 
+    ///
     /// Panics if `row` is out of bounds
     pub fn get_row(&self, row: usize) -> &MatrixRowPtr {
         let size = self.0.len();
@@ -30,20 +30,19 @@ impl SquareMatrixPtr {
 
 unsafe impl Send for SquareMatrixPtr {}
 
-// incapsule *mut i32 into custom type implementing send
+/// Struct holding mutable pointers to `i32` type.
+/// It represents a row of a matrix that can be modified
 pub struct MatrixRowMutPtr(pub *mut i32);
 
-/// Struct holding mutable pointers to `i32` type
-/// It represents a row of a matrix that can be modified
 impl MatrixRowMutPtr {
     /// Get value by index
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `offset` - index of value
-    /// 
+    ///
     /// # Safety
-    /// 
+    ///
     /// This function is unsafe because it dereferences a raw pointer, and it
     /// is the caller's responsibility to ensure that the pointer is valid.
     pub unsafe fn add(&mut self, offset: usize) -> &mut i32 {
@@ -55,19 +54,19 @@ unsafe impl Send for MatrixRowMutPtr {}
 
 /// Struct holding pointers to `i32` type
 /// It represents a row of a matrix
-/// 
-/// 
+///
+///
 pub struct MatrixRowPtr(pub *const i32);
 
 impl MatrixRowPtr {
     /// Get value by index
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `offset` - index of value
-    /// 
+    ///
     /// # Safety
-    /// 
+    ///
     /// This function is unsafe because it dereferences a raw pointer, and it
     /// is the caller's responsibility to ensure that the pointer is valid.
     pub unsafe fn add(&self, offset: usize) -> &i32 {
@@ -79,7 +78,7 @@ unsafe impl Send for MatrixRowPtr {}
 
 #[cfg(test)]
 mod tests {
-    use super::SquareMatrixPtr;
+    use super::*;
 
     #[test]
     fn test_square_matrix_ptr() {
@@ -101,6 +100,40 @@ mod tests {
             assert_eq!(*a_2.add(0), 7);
             assert_eq!(*a_2.add(1), 8);
             assert_eq!(*a_2.add(2), 9);
+        }
+    }
+
+    #[test]
+    fn test_get_row_out_of_bounds() {
+        let a = vec![vec![1, 2, 3], vec![4, 5, 6], vec![7, 8, 9]];
+        let a_ptr = SquareMatrixPtr::new(&a);
+
+        assert!(std::panic::catch_unwind(|| {
+            a_ptr.get_row(3);
+        }).is_err());
+    }
+
+    #[test]
+    fn test_matrix_row_ptr_add() {
+        let a = vec![1, 2, 3];
+        let a_ptr = MatrixRowPtr(a.as_ptr());
+
+        unsafe {
+            assert_eq!(*a_ptr.add(0), 1);
+            assert_eq!(*a_ptr.add(1), 2);
+            assert_eq!(*a_ptr.add(2), 3);
+        }
+    }
+
+    #[test]
+    fn test_matrix_row_mut_ptr_add() {
+        let mut a = vec![1, 2, 3];
+        let mut a_ptr = MatrixRowMutPtr(a.as_mut_ptr());
+
+        unsafe {
+            assert_eq!(*a_ptr.add(0), 1);
+            assert_eq!(*a_ptr.add(1), 2);
+            assert_eq!(*a_ptr.add(2), 3);
         }
     }
 }

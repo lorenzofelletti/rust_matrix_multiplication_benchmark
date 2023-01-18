@@ -10,14 +10,17 @@ const MAX_ABS_VALUE_DEFAULT: i32 = 11; // 11 results in a matrix with values fro
 /// # Returns
 ///
 /// A square matrix of size `size` as a `Vec<Vec<i32>>`
-/// ```
+///
+/// # Panics
+///
+/// Panics if `max_abs_value` is less than 1
 pub fn generate_square_matrix_of_size(size: usize, random_values: bool, max_abs_value: Option<i32>) -> Vec<Vec<i32>> {
     let mut matrix = Vec::with_capacity(size);
 
     let modulo = max_abs_value.unwrap_or(MAX_ABS_VALUE_DEFAULT);
 
     if modulo < 1 {
-        panic!("max_abs_value must be greater than 0");
+        panic!("max_abs_value must be greater than 1");
     }
 
     for _ in 0..size {
@@ -89,5 +92,35 @@ mod tests {
         assert_eq!(matrix[0].len(), 10);
         assert!(matrix[0][0] >= -max_abs_value && matrix[0][0] <= max_abs_value);
         assert!(matrix[9][9] >= -max_abs_value && matrix[9][9] <= max_abs_value);
+    }
+
+    #[test]
+    fn test_generate_empty_matrix() {
+        let matrix = zero_filled_square_matrix_of_size!(0);
+        assert_eq!(matrix.len(), 0);
+    }
+
+    #[test]
+    fn test_generate_square_matrix_of_size_1() {
+        let matrix = zero_filled_square_matrix_of_size!(1);
+        assert_eq!(matrix.len(), 1);
+        assert_eq!(matrix[0].len(), 1);
+        assert_eq!(matrix[0][0], 0);
+
+        let matrix = random_filled_square_matrix_of_size!(1);
+        assert_eq!(matrix.len(), 1);
+        assert_eq!(matrix[0].len(), 1);
+        assert!(matrix[0][0] >= -MAX_ABS_VALUE_DEFAULT && matrix[0][0] <= MAX_ABS_VALUE_DEFAULT);
+    }
+
+    #[test]
+    fn test_generate_square_matrix_of_size_random_custom_abs_panic() {
+        let max_abs_value = 1;
+        let _matrix = random_filled_square_matrix_of_size!(10, max_abs_value);
+
+        let max_abs_value = -1;
+        std::panic::catch_unwind(|| {
+            let _matrix = random_filled_square_matrix_of_size!(10, max_abs_value);
+        }).expect_err("Should panic");
     }
 }
