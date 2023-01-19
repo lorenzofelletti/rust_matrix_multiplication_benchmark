@@ -43,10 +43,19 @@ pub fn matrix_multiplication_sequential_ikj(
 
     let mut c = zero_filled_square_matrix_of_size!(size);
 
+    let b = SquareMatrixPtr::new(b);
+
+
+
     for i in 0..size {
+        let a_i = MatrixRowPtr(a[i].as_ptr());
+        let mut c_i = MatrixRowMutPtr(c[i].as_mut_ptr());
         for k in 0..size {
+            let b_k = b.get_row(k);
             for j in 0..size {
-                c[i][j] += a[i][k] * b[k][j];
+                unsafe {
+                    *c_i.add(j) += *a_i.add(k) * *b_k.add(j);
+                }
             }
         }
     }
