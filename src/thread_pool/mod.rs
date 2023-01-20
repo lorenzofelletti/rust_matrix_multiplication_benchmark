@@ -28,7 +28,9 @@ impl ThreadPool {
     /// The `new` function will panic if the size is zero.
     pub fn new(size: usize) -> ThreadPool {
         // panic if size 0
-        assert!(size > 0, "Size must be greater than 0");
+        if size == 0 {
+            panic!("Size cannot be 0");
+        }
 
         // min between os available threads and size
         let number_of_threads_to_use = number_of_threads_to_use(size);
