@@ -61,27 +61,6 @@ pub fn matrix_multiplication_sequential_ijk(
     Ok(c)
 }
 
-/*pub fn matrix_multiplication_sequential_ikj_unoptimized(
-    a: &Vec<Vec<i32>>,
-    b: &Vec<Vec<i32>>,
-) -> Result<Vec<Vec<i32>>, SanitizeError> {
-    sanitize_matrices(a, b)?;
-
-    let size = a.len();
-
-    let mut c = zero_filled_square_matrix_of_size!(size);
-
-    for i in 0..size {
-        for k in 0..size {
-            for j in 0..size {
-                c[i][j] += a[i][k] * b[k][j];
-            }
-        }
-    }
-
-    Ok(c)
-}*/
-
 pub fn matrix_multiplication_sequential_ikj(
     a: &Vec<Vec<i32>>,
     b: &Vec<Vec<i32>>,
