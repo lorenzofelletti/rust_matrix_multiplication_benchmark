@@ -45,8 +45,6 @@ pub fn matrix_multiplication_sequential_ikj(
 
     let b = SquareMatrixPtr::new(b);
 
-
-
     for i in 0..size {
         let a_i = MatrixRowPtr(a[i].as_ptr());
         let mut c_i = MatrixRowMutPtr(c[i].as_mut_ptr());
@@ -81,15 +79,20 @@ pub fn matrix_multiplication_parallel_i_loop(
         let mut c_i = MatrixRowMutPtr(c[i].as_mut_ptr());
         let b = SquareMatrixPtr::new(b);
 
+        let idle_thread_id = pool.state_receiver.recv().unwrap().id;
+
         unsafe {
-            pool.execute(move || {
-                for k in 0..size {
-                    let b_k = b.get_row(k);
-                    for j in 0..size {
-                        *c_i.add(j) += *a_i.add(k) * *b_k.add(j);
+            pool.execute(
+                move || {
+                    for k in 0..size {
+                        let b_k = b.get_row(k);
+                        for j in 0..size {
+                            *c_i.add(j) += *a_i.add(k) * *b_k.add(j);
+                        }
                     }
-                }
-            });
+                },
+                idle_thread_id,
+            );
         }
     }
 

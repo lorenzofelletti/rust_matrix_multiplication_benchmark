@@ -2,7 +2,6 @@ use log::info;
 use std::cmp::min_by;
 use std::num::NonZeroUsize;
 use std::sync::mpsc;
-use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
 /// A ThreadPool that manages a variable number of threads.
@@ -15,7 +14,9 @@ pub struct ThreadPool {
     /// Vector of worker threads
     workers: Vec<Worker>,
     /// Channel to send jobs to the threads
-    sender: mpsc::Sender<Message>,
+    pub senders: Vec<mpsc::Sender<Message>>,
+    // Channel to receive thread state from the threads
+    pub state_receiver: mpsc::Receiver<IdleState>,
 }
 
 impl ThreadPool {
@@ -31,29 +32,37 @@ impl ThreadPool {
         assert!(size > 0, "Size must be greater than 0");
 
         // min between os available threads and size
-        let number_of_threads_to_use = number_of_threads_to_use(size);
+        let size = number_of_threads_to_use(size);
+        let mut senders = Vec::with_capacity(size);
 
-        let (sender, receiver) = mpsc::channel::<Message>();
-        let receiver = Arc::new(Mutex::new(receiver));
+        let (state_sender, state_receiver) = mpsc::channel::<IdleState>();
         let mut workers = Vec::with_capacity(size);
 
-        for id in 0..number_of_threads_to_use {
+        for id in 0..size {
+            let (job_sender, job_receiver) = mpsc::channel::<Message>();
             // create some threads and store them in the vector
-            workers.push(Worker::new(id, Arc::clone(&receiver)));
+            workers.push(Worker::new(id, job_receiver, state_sender.clone()));
+            senders.push(job_sender.clone());
         }
 
-        ThreadPool { workers, sender }
+        //let state_receiver = Arc::new(state_receiver);
+
+        ThreadPool {
+            workers,
+            senders,
+            state_receiver,
+        }
     }
 
     /// Execute a function in the thread pool.
     /// The function will be executed in one of the threads in the pool.
-    pub fn execute<F>(&self, f: F)
-        where
-            F: FnOnce() + Send + 'static,
+    pub fn execute<F>(&self, f: F, id: usize)
+    where
+        F: FnOnce() + Send + 'static,
     {
         let job = Message::NewJob(Box::new(f));
 
-        self.sender.send(job).unwrap();
+        self.senders[id].send(job).unwrap();
     }
 
     /// Terminate the thread pool.
@@ -63,8 +72,9 @@ impl ThreadPool {
 
 impl Drop for ThreadPool {
     fn drop(&mut self) {
-        for _ in &self.workers {
-            self.sender.send(Message::Terminate).unwrap();
+        let workers_len = self.workers.len();
+        for i in 0..workers_len {
+            self.senders[i].send(Message::Terminate).unwrap();
         }
         for w in &mut self.workers {
             if let Some(thread) = w.thread.take() {
@@ -80,18 +90,28 @@ struct Worker {
 }
 
 impl Worker {
-    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Message>>>) -> Worker {
-        let thread = thread::spawn(move || loop {
-            let message = receiver.lock().unwrap().recv().unwrap();
+    fn new(
+        id: usize,
+        receiver: mpsc::Receiver<Message>,
+        sender: mpsc::Sender<IdleState>,
+    ) -> Worker {
+        let thread = thread::spawn(move || {
+            // send idle state to main thread
+            sender.send(IdleState { id }).unwrap();
+            // receive jobs from main thread
+            loop {
+                let message = receiver.recv().unwrap();
 
-            match message {
-                Message::NewJob(job) => {
-                    info!("Worker {} got a job; executing.", id);
-                    job();
-                }
-                Message::Terminate => {
-                    info!("Worker {} was told to terminate.", id);
-                    break;
+                match message {
+                    Message::NewJob(job) => {
+                        info!("Worker {} got a job; executing.", id);
+                        job();
+                        sender.send(IdleState { id }).unwrap();
+                    }
+                    Message::Terminate => {
+                        info!("Worker {} was told to terminate.", id);
+                        break;
+                    }
                 }
             }
         });
@@ -112,36 +132,65 @@ fn number_of_threads_to_use(desired_size: usize) -> usize {
         NonZeroUsize::new(desired_size).unwrap(),
         |x: &NonZeroUsize, y: &NonZeroUsize| x.cmp(y),
     )
-        .get()
+    .get()
 }
 
-enum Message {
+pub enum Message {
     Terminate,
     NewJob(Job),
 }
 
+/// Thread signal for when it is idle
+pub struct IdleState {
+    pub id: usize,
+}
+
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
+    use log::error;
+
     use super::*;
+    use std::time::Duration;
 
     #[test]
     fn it_works() {
         let pool = ThreadPool::new(4);
 
-        let (tx, rx) = mpsc::channel();
+        let (tx, rx) = mpsc::channel::<usize>();
 
-        for i in 0..4 {
+        let mut i = 0;
+        loop {
+            if i == 4 {
+                break;
+            }
+            let idle_thread = pool.state_receiver.recv();
+            match &idle_thread {
+                Ok(_) => {}
+                Err(e) => {
+                    error!("Error: {}", e);
+                    break;
+                }
+            };
+            i += 1;
+            let idle_thread = idle_thread.unwrap();
+            let idle_thread_id = idle_thread.id;
+
             let tx = tx.clone();
 
-            pool.execute(move || {
-                thread::sleep(Duration::from_secs(1));
-                tx.send(i).unwrap();
-            });
+            pool.execute(
+                move || {
+                    println!("Thread {} is working", idle_thread_id);
+                    thread::sleep(Duration::from_secs(1));
+                    tx.send(idle_thread_id).unwrap();
+                },
+                idle_thread_id,
+            )
         }
 
         for _ in 0..4 {
-            info!("Got: {}", rx.recv().unwrap());
+            let thread_id = rx.recv().unwrap();
+            println!("Thread {} sent", thread_id);
+            assert!(thread_id < 4);
         }
 
         ThreadPool::terminate(pool);
@@ -153,6 +202,7 @@ mod tests {
         let pool = ThreadPool::new(available_threads + 1);
 
         assert_eq!(pool.workers.len(), available_threads);
+        pool.state_receiver.recv().unwrap();
         ThreadPool::terminate(pool);
     }
 
@@ -171,6 +221,6 @@ mod tests {
         std::panic::catch_unwind(|| {
             ThreadPool::new(0);
         })
-            .expect_err("Should panic");
+        .expect_err("Should panic");
     }
 }
