@@ -110,7 +110,8 @@ mod tests {
 
         assert!(std::panic::catch_unwind(|| {
             a_ptr.get_row(3);
-        }).is_err());
+        })
+        .is_err());
     }
 
     #[test]

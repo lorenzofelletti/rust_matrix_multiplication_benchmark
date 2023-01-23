@@ -6,10 +6,8 @@ use clap::Parser;
 use log::debug;
 
 use crate::{
-    cli::Cli,
-    matrix_multiplication::{matrix_multiplication_parallel_i_loop,
-        matrix_multiplication_sequential_ijk, matrix_multiplication_sequential_ikj,
-    },
+    cli::Cli, matrix_multiplication::algorithms::Algorithm,
+    matrix_multiplication::matrix_multiplication,
 };
 
 mod cli;
@@ -43,7 +41,7 @@ fn matrix_multiplication_benchmark(cli: &Cli) {
 
         if parallel_only == false {
             let start = Instant::now();
-            let _c = matrix_multiplication_sequential_ijk(&a, &b);
+            let _c = matrix_multiplication(&a, &b, Algorithm::SequentialIjk);
             let end = Instant::now();
             sequential_ijk_times.push(end.duration_since(start).as_millis());
 
@@ -51,7 +49,7 @@ fn matrix_multiplication_benchmark(cli: &Cli) {
             debug!("finished sequential ijk");
 
             let start = Instant::now();
-            let _c = matrix_multiplication_sequential_ikj(&a, &b);
+            let _c = matrix_multiplication(&a, &b, Algorithm::SequentialIkj);
             let end = Instant::now();
             sequential_ikj_times.push(end.duration_since(start).as_millis());
 
@@ -60,7 +58,7 @@ fn matrix_multiplication_benchmark(cli: &Cli) {
         }
 
         let start = Instant::now();
-        let _c = matrix_multiplication_parallel_i_loop(&a, &b, threads);
+        let _c = matrix_multiplication(&a, &b, Algorithm::ParallelILoop(threads));
         let end = Instant::now();
         parallel_i_loop_times.push(end.duration_since(start).as_millis());
 
