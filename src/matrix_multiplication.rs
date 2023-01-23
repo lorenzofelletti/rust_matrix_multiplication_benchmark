@@ -29,8 +29,9 @@ pub fn matrix_multiplication_sequential_ijk(
         let mut c_i = MatrixRowMutPtr(c[i].as_mut_ptr());
         for j in 0..size {
             for k in 0..size {
+                let b_k = b.get_row(k);
                 unsafe {
-                    *c_i.add(j) += *a_i.add(k) * *b.get_row(4).add(j);
+                    *c_i.add(j) += *a_i.add(k) * *b_k.add(j);
                 }
             }
         }
