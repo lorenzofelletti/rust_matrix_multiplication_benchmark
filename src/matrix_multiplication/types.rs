@@ -1,6 +1,6 @@
 /// Struct holding pointers to `MatrixRowPtr` type
 #[derive(Clone)]
-pub struct SquareMatrixPtr(pub Vec<MatrixRowPtr>);
+pub struct SquareMatrixPtr(pub Vec<MatrixRowPtr<*const i32>>);
 
 impl SquareMatrixPtr {
     /// Create new `SquareMatrixPtr` from `Vec<Vec<i32>>`
@@ -19,7 +19,7 @@ impl SquareMatrixPtr {
     /// # Panics
     ///
     /// Panics if `row` is out of bounds
-    pub fn get_row(&self, row: usize) -> &MatrixRowPtr {
+    pub fn get_row(&self, row: usize) -> &MatrixRowPtr<*const i32> {
         let size = self.0.len();
         if row > size {
             panic!("Row index out of bounds");
@@ -34,9 +34,9 @@ unsafe impl Send for SquareMatrixPtr {}
 /// Struct holding mutable pointers to `i32` type.
 /// It represents a row of a matrix that can be modified
 #[derive(Clone, Copy)]
-pub struct MatrixRowMutPtr(pub *mut i32);
+pub struct MatrixRowPtr<T>(pub T);
 
-impl MatrixRowMutPtr {
+impl MatrixRowPtr<*mut i32> {
     /// Get value by index
     ///
     /// # Arguments
@@ -47,21 +47,12 @@ impl MatrixRowMutPtr {
     ///
     /// This function is unsafe because it dereferences a raw pointer, and it
     /// is the caller's responsibility to ensure that the pointer is valid.
-    pub unsafe fn add(&mut self, offset: usize) -> &mut i32 {
+    pub unsafe fn add_mut(&mut self, offset: usize) -> &mut i32 {
         &mut *self.0.add(offset)
     }
 }
 
-unsafe impl Send for MatrixRowMutPtr {}
-
-/// Struct holding pointers to `i32` type
-/// It represents a row of a matrix
-///
-///
-#[derive(Clone, Copy)]
-pub struct MatrixRowPtr(pub *const i32);
-
-impl MatrixRowPtr {
+impl MatrixRowPtr<*const i32> {
     /// Get value by index
     ///
     /// # Arguments
@@ -77,7 +68,7 @@ impl MatrixRowPtr {
     }
 }
 
-unsafe impl Send for MatrixRowPtr {}
+unsafe impl<T> Send for MatrixRowPtr<T> {}
 
 #[cfg(test)]
 mod tests {
@@ -132,12 +123,12 @@ mod tests {
     #[test]
     fn test_matrix_row_mut_ptr_add() {
         let mut a = vec![1, 2, 3];
-        let mut a_ptr = MatrixRowMutPtr(a.as_mut_ptr());
+        let mut a_ptr = MatrixRowPtr(a.as_mut_ptr());
 
         unsafe {
-            assert_eq!(*a_ptr.add(0), 1);
-            assert_eq!(*a_ptr.add(1), 2);
-            assert_eq!(*a_ptr.add(2), 3);
+            assert_eq!(*a_ptr.add_mut(0), 1);
+            assert_eq!(*a_ptr.add_mut(1), 2);
+            assert_eq!(*a_ptr.add_mut(2), 3);
         }
     }
 }

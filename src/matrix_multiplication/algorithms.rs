@@ -9,9 +9,9 @@ pub enum Algorithm {
     /// * `usize` - number of threads to use
     ParallelILoop(usize),
     /// Parallel algorithm using tiling
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `usize` - number of threads to use
     /// * `usize` - tile size
     ParallelTiling(usize, usize),

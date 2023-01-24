@@ -54,7 +54,10 @@ pub fn sanitize_matrices(a: &Vec<Vec<i32>>, b: &Vec<Vec<i32>>) -> Result<(), San
     }
 }
 
-pub fn size_multiple_of_tile_size(size: usize, tile_size: usize) -> Result<(), SanitizeError> {
+pub fn extra_sanitization_steps_for_tiling_algorithm(
+    size: usize,
+    tile_size: usize,
+) -> Result<(), SanitizeError> {
     match size % tile_size {
         0 => Ok(()),
         _ => Err(SanitizeError::SizeNotMultipleOfTileSize),
@@ -140,9 +143,12 @@ mod tests {
         let ok_tile_size = 2;
         let not_ok_tile_size = 3;
 
-        assert_eq!(size_multiple_of_tile_size(size, ok_tile_size), Ok(()));
         assert_eq!(
-            size_multiple_of_tile_size(size, not_ok_tile_size),
+            extra_sanitization_steps_for_tiling_algorithm(size, ok_tile_size),
+            Ok(())
+        );
+        assert_eq!(
+            extra_sanitization_steps_for_tiling_algorithm(size, not_ok_tile_size),
             Err(SanitizeError::SizeNotMultipleOfTileSize)
         );
     }
