@@ -1,4 +1,5 @@
 /// Enum representing available matrix multiplication algorithms
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Algorithm {
     SequentialIjk,
     SequentialIkj,

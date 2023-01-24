@@ -1,3 +1,5 @@
+use std::fmt;
+
 #[derive(Debug, PartialEq)]
 /// Enum to represent the errors that can occur during the sanitization of the matrices
 pub enum SanitizeError {
@@ -5,6 +7,21 @@ pub enum SanitizeError {
     NotSquareMatrix(String),
     NotSameSize,
     SizeNotMultipleOfTileSize,
+}
+
+impl fmt::Display for SanitizeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            SanitizeError::EmptyMatrix(matrix_name) => write!(f, "Matrix {} is empty", matrix_name),
+            SanitizeError::NotSquareMatrix(matrix_name) => {
+                write!(f, "Matrix {} is not square", matrix_name)
+            }
+            SanitizeError::NotSameSize => write!(f, "Matrices are not the same size"),
+            SanitizeError::SizeNotMultipleOfTileSize => {
+                write!(f, "Matrix size is not a multiple of tile size")
+            }
+        }
+    }
 }
 
 fn is_matrix_square(a: &Vec<Vec<i32>>, matrix_name: &str) -> Result<(), SanitizeError> {
