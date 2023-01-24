@@ -26,6 +26,7 @@ fn matrix_multiplication_benchmark(cli: &Cli) {
     let mut sequential_ijk_times = Vec::new();
     let mut sequential_ikj_times = Vec::new();
     let mut parallel_i_loop_times = Vec::new();
+    let mut parallel_tiling_times = Vec::new();
 
     println!("Welcome to Matrix Multiplication Benchmark!");
     println!("Matrix size: {}", n);
@@ -65,6 +66,14 @@ fn matrix_multiplication_benchmark(cli: &Cli) {
         println!("finished parallel i-loop");
         debug!("finished parallel i-loop");
 
+        let start = Instant::now();
+        let _c = matrix_multiplication(&a, &b, Algorithm::ParallelTiling(threads, 32));
+        let end = Instant::now();
+        parallel_tiling_times.push(end.duration_since(start).as_millis());
+
+        println!("finished parallel tiling");
+        debug!("finished parallel tiling");
+
         println!();
     }
 
@@ -73,6 +82,7 @@ fn matrix_multiplication_benchmark(cli: &Cli) {
     let sequential_ijk_average = sequential_ijk_times.iter().sum::<u128>() / iterations as u128;
     let sequential_ikj_average = sequential_ikj_times.iter().sum::<u128>() / iterations as u128;
     let parallel_ijk_average = parallel_i_loop_times.iter().sum::<u128>() / iterations as u128;
+    let parallel_tiling_average = parallel_tiling_times.iter().sum::<u128>() / iterations as u128;
 
     // print results
 
@@ -82,6 +92,7 @@ fn matrix_multiplication_benchmark(cli: &Cli) {
         println!("sequential ikj average: {} ms", sequential_ikj_average);
     }
     println!("parallel i-loop average: {} ms", parallel_ijk_average);
+    println!("parallel tiling average: {} ms", parallel_tiling_average);
 }
 
 fn main() {

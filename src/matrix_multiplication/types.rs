@@ -1,4 +1,5 @@
 /// Struct holding pointers to `MatrixRowPtr` type
+#[derive(Clone)]
 pub struct SquareMatrixPtr(pub Vec<MatrixRowPtr>);
 
 impl SquareMatrixPtr {
@@ -32,6 +33,7 @@ unsafe impl Send for SquareMatrixPtr {}
 
 /// Struct holding mutable pointers to `i32` type.
 /// It represents a row of a matrix that can be modified
+#[derive(Clone, Copy)]
 pub struct MatrixRowMutPtr(pub *mut i32);
 
 impl MatrixRowMutPtr {
@@ -56,6 +58,7 @@ unsafe impl Send for MatrixRowMutPtr {}
 /// It represents a row of a matrix
 ///
 ///
+#[derive(Clone, Copy)]
 pub struct MatrixRowPtr(pub *const i32);
 
 impl MatrixRowPtr {

@@ -4,6 +4,7 @@ pub enum SanitizeError {
     EmptyMatrix(String),
     NotSquareMatrix(String),
     NotSameSize,
+    SizeNotMultipleOfTileSize,
 }
 
 fn is_matrix_square(a: &Vec<Vec<i32>>, matrix_name: &str) -> Result<(), SanitizeError> {
@@ -50,6 +51,13 @@ pub fn sanitize_matrices(a: &Vec<Vec<i32>>, b: &Vec<Vec<i32>>) -> Result<(), San
     match are_square_matrices_same_size(a, b) {
         true => Ok(()),
         false => Err(SanitizeError::NotSameSize),
+    }
+}
+
+pub fn size_multiple_of_tile_size(size: usize, tile_size: usize) -> Result<(), SanitizeError> {
+    match size % tile_size {
+        0 => Ok(()),
+        _ => Err(SanitizeError::SizeNotMultipleOfTileSize),
     }
 }
 
@@ -123,9 +131,19 @@ mod tests {
         let c = get_2x2();
 
         assert_eq!(sanitize_matrices(&a, &b), Ok(()));
+        assert_eq!(sanitize_matrices(&a, &c), Err(SanitizeError::NotSameSize));
+    }
+
+    #[test]
+    fn test_size_multiple_of_tile_size() {
+        let size = 4;
+        let ok_tile_size = 2;
+        let not_ok_tile_size = 3;
+
+        assert_eq!(size_multiple_of_tile_size(size, ok_tile_size), Ok(()));
         assert_eq!(
-            sanitize_matrices(&a, &c),
-            Err(SanitizeError::NotSameSize)
+            size_multiple_of_tile_size(size, not_ok_tile_size),
+            Err(SanitizeError::SizeNotMultipleOfTileSize)
         );
     }
 }
