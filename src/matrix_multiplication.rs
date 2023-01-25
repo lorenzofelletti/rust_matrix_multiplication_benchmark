@@ -135,7 +135,7 @@ fn matrix_multiplication_parallel_tiling(
     threads: usize,
 ) -> Result<Vec<i32>, SanitizeError> {
     let out_vec_len = size * size;
-    let mut c: Vec<i32> = Vec::with_capacity(size * size);
+    let mut c: Vec<i32> = vec![0; out_vec_len];
 
     let a: Vec<i32> = a.into_iter().flatten().map(|x| *x).collect::<Vec<_>>();
     let b: Vec<i32> = b.into_iter().flatten().map(|x| *x).collect::<Vec<_>>();
