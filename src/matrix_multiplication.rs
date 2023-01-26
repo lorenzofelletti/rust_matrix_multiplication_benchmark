@@ -35,7 +35,9 @@ pub fn matrix_multiplication(
         Algorithm::SequentialIjk => matrix_multiplication_sequential_ijk(a, b, size),
         Algorithm::SequentialIkj => matrix_multiplication_sequential_ikj(a, b, size),
         Algorithm::ParallelILoop(threads) => {
-            matrix_multiplication_parallel_i_loop(a, b, size, threads)
+            let res = matrix_multiplication_parallel_i_loop(a, b, size, threads)?;
+            let c: Vec<Vec<i32>> = res.chunks(size).map(|row| row.to_vec()).collect();
+            Ok(c)
         }
         Algorithm::ParallelTiling(threads, tile_size) => {
             let res = matrix_multiplication_parallel_tiling(a, b, size, tile_size, threads)?;
@@ -100,22 +102,25 @@ fn matrix_multiplication_parallel_i_loop(
     b: &Vec<Vec<i32>>,
     size: usize,
     preferred_number_of_threads: usize,
-) -> Result<Vec<Vec<i32>>, SanitizeError> {
-    let mut c = zero_filled_square_matrix_of_size!(size);
+) -> Result<Vec<i32>, SanitizeError> {
+    let out_vec_len = size * size;
+    let mut c: Vec<i32> = vec![0; out_vec_len];
 
     let pool = ThreadPool::new(preferred_number_of_threads);
 
-    for i in 0..size {
-        let a_i = MatrixRowPtr(a[i].as_ptr());
-        let mut c_i = MatrixRowPtr(c[i].as_mut_ptr());
-        let b = SquareMatrixPtr::new(b);
+    let a: Vec<i32> = a.into_iter().flatten().map(|x| *x).collect::<Vec<_>>();
+    let b: Vec<i32> = b.into_iter().flatten().map(|x| *x).collect::<Vec<_>>();
 
+    let a = MatrixRowPtr(a.as_ptr());
+    let b = MatrixRowPtr(b.as_ptr());
+    let mut c_ptr = MatrixRowPtr(c.as_mut_ptr());
+
+    for i in 0..size {
         unsafe {
             pool.execute(move || {
                 for k in 0..size {
-                    let b_k = b.get_row(k);
                     for j in 0..size {
-                        *c_i.add_mut(j) += *a_i.add(k) * *b_k.add(j);
+                        *c_ptr.add_mut(i * size + j) += *a.add(i * size + k) * *b.add(k * size + j);
                     }
                 }
             });
@@ -228,7 +233,7 @@ mod tests {
 
         let c = matrix_multiplication_parallel_i_loop(&a, &b, a.len(), threads).unwrap();
 
-        assert_eq!(c, get_c());
+        assert_eq!(c, get_c().into_iter().flatten().collect::<Vec<_>>());
     }
 
     #[test]
