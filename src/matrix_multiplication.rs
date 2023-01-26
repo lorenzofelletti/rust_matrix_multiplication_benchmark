@@ -3,12 +3,11 @@ use std::mem;
 use thread_pool::ThreadPool;
 use types::MatrixRowPtr;
 
-use crate::{thread_pool, zero_filled_square_matrix_of_size};
+use crate::thread_pool;
 
 use self::{
     algorithms::Algorithm,
     sanitize::{extra_sanitization_steps_for_tiling_algorithm, sanitize_matrices, SanitizeError},
-    types::SquareMatrixPtr,
 };
 
 pub mod algorithms;
@@ -31,39 +30,40 @@ pub fn matrix_multiplication(
 
     let size = a.len();
 
-    match algorithm {
-        Algorithm::SequentialIjk => matrix_multiplication_sequential_ijk(a, b, size),
-        Algorithm::SequentialIkj => matrix_multiplication_sequential_ikj(a, b, size),
+    let a = a.into_iter().flatten().map(|x| *x).collect::<Vec<i32>>();
+    let b = b.into_iter().flatten().map(|x| *x).collect::<Vec<i32>>();
+
+    let c = match algorithm {
+        Algorithm::SequentialIjk => matrix_multiplication_sequential_ijk(&a, &b, size),
+        Algorithm::SequentialIkj => matrix_multiplication_sequential_ikj(&a, &b, size),
         Algorithm::ParallelILoop(threads) => {
-            let res = matrix_multiplication_parallel_i_loop(a, b, size, threads)?;
-            let c: Vec<Vec<i32>> = res.chunks(size).map(|row| row.to_vec()).collect();
-            Ok(c)
+            matrix_multiplication_parallel_i_loop(&a, &b, size, threads)
         }
         Algorithm::ParallelTiling(threads, tile_size) => {
-            let res = matrix_multiplication_parallel_tiling(a, b, size, tile_size, threads)?;
-            let c: Vec<Vec<i32>> = res.chunks(size).map(|row| row.to_vec()).collect();
-            Ok(c)
+            matrix_multiplication_parallel_tiling(&a, &b, size, tile_size, threads)
         }
-    }
+    };
+    Ok(c.into_iter()
+        .map(|x| x.into_iter().map(|x| x as i32).collect())
+        .collect())
 }
 
 fn matrix_multiplication_sequential_ijk(
-    a: &Vec<Vec<i32>>,
-    b: &Vec<Vec<i32>>,
+    a: &Vec<i32>,
+    b: &Vec<i32>,
     size: usize,
-) -> Result<Vec<Vec<i32>>, SanitizeError> {
-    let mut c = zero_filled_square_matrix_of_size!(size);
+) -> Result<Vec<i32>, SanitizeError> {
+    let mut c: Vec<i32> = vec![0; size * size];
 
-    let b = SquareMatrixPtr::new(b);
+    let a = a.as_ptr();
+    let b = b.as_ptr();
+    let c_ptr = c.as_mut_ptr();
 
     for i in 0..size {
-        let a_i = MatrixRowPtr(a[i].as_ptr());
-        let mut c_i = MatrixRowPtr(c[i].as_mut_ptr());
         for j in 0..size {
             for k in 0..size {
-                let b_k = b.get_row(k);
                 unsafe {
-                    *c_i.add_mut(j) += *a_i.add(k) * *b_k.add(j);
+                    *c_ptr.add(i * size + j) += *a.add(i * size + k) * *b.add(k * size + j);
                 }
             }
         }
@@ -73,22 +73,21 @@ fn matrix_multiplication_sequential_ijk(
 }
 
 fn matrix_multiplication_sequential_ikj(
-    a: &Vec<Vec<i32>>,
-    b: &Vec<Vec<i32>>,
+    a: &Vec<i32>,
+    b: &Vec<i32>,
     size: usize,
-) -> Result<Vec<Vec<i32>>, SanitizeError> {
-    let mut c = zero_filled_square_matrix_of_size!(size);
+) -> Result<Vec<i32>, SanitizeError> {
+    let mut c: Vec<i32> = vec![0; size * size];
 
-    let b = SquareMatrixPtr::new(b);
+    let a = a.as_ptr();
+    let b = b.as_ptr();
+    let c_ptr = c.as_mut_ptr();
 
     for i in 0..size {
-        let a_i = MatrixRowPtr(a[i].as_ptr());
-        let mut c_i = MatrixRowPtr(c[i].as_mut_ptr());
         for k in 0..size {
-            let b_k = b.get_row(k);
             for j in 0..size {
                 unsafe {
-                    *c_i.add_mut(j) += *a_i.add(k) * *b_k.add(j);
+                    *c_ptr.add(i * size + j) += *a.add(i * size + k) * *b.add(k * size + j);
                 }
             }
         }
@@ -98,8 +97,8 @@ fn matrix_multiplication_sequential_ikj(
 }
 
 fn matrix_multiplication_parallel_i_loop(
-    a: &Vec<Vec<i32>>,
-    b: &Vec<Vec<i32>>,
+    a: &Vec<i32>,
+    b: &Vec<i32>,
     size: usize,
     preferred_number_of_threads: usize,
 ) -> Result<Vec<i32>, SanitizeError> {
@@ -108,23 +107,23 @@ fn matrix_multiplication_parallel_i_loop(
 
     let pool = ThreadPool::new(preferred_number_of_threads);
 
-    let a: Vec<i32> = a.into_iter().flatten().map(|x| *x).collect::<Vec<_>>();
-    let b: Vec<i32> = b.into_iter().flatten().map(|x| *x).collect::<Vec<_>>();
-
     let a = MatrixRowPtr(a.as_ptr());
     let b = MatrixRowPtr(b.as_ptr());
-    let mut c_ptr = MatrixRowPtr(c.as_mut_ptr());
+    let c_ptr = MatrixRowPtr(c.as_mut_ptr());
 
     for i in 0..size {
-        unsafe {
-            pool.execute(move || {
-                for k in 0..size {
-                    for j in 0..size {
+        pool.execute(move || {
+            let a = a;
+            let b = b;
+            let c_ptr = c_ptr;
+            for k in 0..size {
+                for j in 0..size {
+                    unsafe {
                         *c_ptr.add_mut(i * size + j) += *a.add(i * size + k) * *b.add(k * size + j);
                     }
                 }
-            });
-        }
+            }
+        });
     }
 
     ThreadPool::terminate(pool);
@@ -133,17 +132,14 @@ fn matrix_multiplication_parallel_i_loop(
 }
 
 fn matrix_multiplication_parallel_tiling(
-    a: &Vec<Vec<i32>>,
-    b: &Vec<Vec<i32>>,
+    a: &Vec<i32>,
+    b: &Vec<i32>,
     size: usize,
     tile_size: usize,
     threads: usize,
 ) -> Result<Vec<i32>, SanitizeError> {
     let out_vec_len = size * size;
     let mut c: Vec<i32> = vec![0; out_vec_len];
-
-    let a: Vec<i32> = a.into_iter().flatten().map(|x| *x).collect::<Vec<_>>();
-    let b: Vec<i32> = b.into_iter().flatten().map(|x| *x).collect::<Vec<_>>();
 
     let a = MatrixRowPtr(a.as_ptr());
     let b = MatrixRowPtr(b.as_ptr());
@@ -158,7 +154,7 @@ fn matrix_multiplication_parallel_tiling(
             pool.execute(move || {
                 let a = a;
                 let b = b;
-                let mut c_ptr = c_ptr;
+                let c_ptr = c_ptr;
                 for kh in (0..size).step_by(tile_size) {
                     for i in 0..tile_size {
                         for k in 0..tile_size {
@@ -190,16 +186,20 @@ mod tests {
     use super::*;
     use std::{num::NonZeroUsize, thread};
 
-    fn get_a() -> Vec<Vec<i32>> {
-        vec![vec![1, 2], vec![3, 4]]
+    fn get_a() -> Vec<i32> {
+        vec![1, 2, 3, 4]
     }
 
-    fn get_b() -> Vec<Vec<i32>> {
-        vec![vec![5, 6], vec![7, 8]]
+    fn get_b() -> Vec<i32> {
+        vec![5, 6, 7, 8]
     }
 
-    fn get_c() -> Vec<Vec<i32>> {
-        vec![vec![19, 22], vec![43, 50]]
+    fn get_c() -> Vec<i32> {
+        vec![19, 22, 43, 50]
+    }
+
+    fn get_size() -> usize {
+        2
     }
 
     #[test]
@@ -207,7 +207,7 @@ mod tests {
         let a = get_a();
         let b = get_b();
 
-        let c = matrix_multiplication_sequential_ijk(&a, &b, a.len()).unwrap();
+        let c = matrix_multiplication_sequential_ijk(&a, &b, get_size()).unwrap();
 
         assert_eq!(c, get_c());
     }
@@ -217,7 +217,7 @@ mod tests {
         let a = get_a();
         let b = get_b();
 
-        let c = matrix_multiplication_sequential_ikj(&a, &b, a.len()).unwrap();
+        let c = matrix_multiplication_sequential_ikj(&a, &b, get_size()).unwrap();
 
         assert_eq!(c, get_c());
     }
@@ -231,9 +231,9 @@ mod tests {
             .unwrap_or(NonZeroUsize::new(1).unwrap())
             .into();
 
-        let c = matrix_multiplication_parallel_i_loop(&a, &b, a.len(), threads).unwrap();
+        let c = matrix_multiplication_parallel_i_loop(&a, &b, get_size(), threads).unwrap();
 
-        assert_eq!(c, get_c().into_iter().flatten().collect::<Vec<_>>());
+        assert_eq!(c, get_c());
     }
 
     #[test]
@@ -245,8 +245,8 @@ mod tests {
             .unwrap_or(NonZeroUsize::new(1).unwrap())
             .into();
 
-        let c = matrix_multiplication_parallel_tiling(&a, &b, a.len(), 1, threads).unwrap();
+        let c = matrix_multiplication_parallel_tiling(&a, &b, get_size(), 1, threads).unwrap();
 
-        assert_eq!(c, get_c().into_iter().flatten().collect::<Vec<_>>())
+        assert_eq!(c, get_c())
     }
 }

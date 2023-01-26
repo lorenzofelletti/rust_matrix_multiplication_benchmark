@@ -28,6 +28,9 @@ pub struct Cli {
     /// Only run parallel matrix multiplication
     pub parallel_only: bool,
 
+    #[arg(short, long, action = clap::ArgAction::SetTrue)]
+    pub skip_ijk: bool,
+
     #[arg(long, default_value_t = 32)]
     /// Tile size for parallel tiling algorithm
     pub tile_size: usize,

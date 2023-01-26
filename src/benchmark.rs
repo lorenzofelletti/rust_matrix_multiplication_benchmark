@@ -21,12 +21,8 @@ pub fn time_algorithm(algorithm: Algorithm, a: &Vec<Vec<i32>>, b: &Vec<Vec<i32>>
     match res {
         Ok(_) => Some(end.duration_since(start).as_millis()),
         Err(err) => {
-            println!(
-                "{} while executing algorithm: {}",
-                "Error".bright_red(),
-                err
-            );
-            error!("Error while executing algorithm: {}", err);
+            println!("{} {}", "Error:".bright_red(), err);
+            error!("Error: {}", err);
             None
         }
     }
@@ -36,9 +32,11 @@ pub fn matrix_multiplication_benchmark(cli: &Cli) {
     let n = cli.size;
     let iterations = cli.iterations;
     let available_threads = thread::available_parallelism().unwrap().get();
-    let threads = cli.threads.unwrap_or(available_threads);
-    let parallel_only: bool = cli.parallel_only;
+    let mut threads = cli.threads.unwrap_or(available_threads);
     let tile_size = cli.tile_size;
+
+    let parallel_only: bool = cli.parallel_only;
+    let skip_ijk = cli.skip_ijk;
 
     // collect execution times for different matrix multiplication methods
 
@@ -48,6 +46,18 @@ pub fn matrix_multiplication_benchmark(cli: &Cli) {
     let mut parallel_tiling_times = Vec::new();
 
     print_title("Welcome to Matrix Multiplication Benchmark!");
+
+    if threads > available_threads {
+        println!(
+            "{} {} threads are available, but {} threads were requested. Using {} threads instead.",
+            "Warning:".bright_yellow(),
+            available_threads,
+            threads,
+            available_threads
+        );
+        threads = available_threads;
+    }
+
     let table = vec![
         vec!["Matrix size".cell(), n.to_string().cell()],
         vec!["Number of threads".cell(), threads.to_string().cell()],
@@ -59,7 +69,9 @@ pub fn matrix_multiplication_benchmark(cli: &Cli) {
 
     let mut algorithms_to_benchmark = VecDeque::with_capacity(4);
     if parallel_only == false {
-        algorithms_to_benchmark.push_back(Algorithm::SequentialIjk);
+        if skip_ijk == false {
+            algorithms_to_benchmark.push_back(Algorithm::SequentialIjk);
+        }
         algorithms_to_benchmark.push_back(Algorithm::SequentialIkj);
     }
     algorithms_to_benchmark.push_back(Algorithm::ParallelILoop(threads));
@@ -96,7 +108,9 @@ pub fn matrix_multiplication_benchmark(cli: &Cli) {
 
     print_title("Benchmark Results");
     if parallel_only == false {
-        println!("sequential ijk average: {} ms", sequential_ijk_average);
+        if skip_ijk == false {
+            println!("sequential ijk average: {} ms", sequential_ijk_average);
+        }
         println!("sequential ikj average: {} ms", sequential_ikj_average);
     }
     println!("parallel i-loop average: {} ms", parallel_ijk_average);
