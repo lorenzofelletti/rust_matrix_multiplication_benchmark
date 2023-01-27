@@ -11,3 +11,7 @@ cli-table = "0.4.7"
 colored = "2.0.0"
 log = "0.4.17"
 rand = "0.8.5"
+
+[profile.deb-rel]
+inherits = "release"
+debug = true
