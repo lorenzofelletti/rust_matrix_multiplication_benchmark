@@ -1,8 +1,7 @@
-use std::{collections::HashMap, thread, time::Instant, vec};
+use std::{thread, time::Instant, vec};
 
 use cli_table::Cell;
-use colored::Colorize;
-use log::{debug, error};
+use log::{error, info};
 
 use crate::{
     cli::{parse_cli_tiles, Cli, Tiling},
@@ -14,36 +13,17 @@ use crate::{
 /// Benchmarks the execution time of a given matrix multiplication algorithm.
 /// Returns the execution time in milliseconds, or `None` if an error occurred.
 /// If an error occurs, the error is logged and printed to the console.
-pub fn time_algorithm(algorithm: Algorithm, a: &Vec<Vec<i32>>, b: &Vec<Vec<i32>>) -> Option<u128> {
+pub fn time_algorithm(algorithm: &Algorithm, a: &Vec<Vec<i32>>, b: &Vec<Vec<i32>>) -> Option<u128> {
     let start = Instant::now();
-    let res = matrix_multiplication(&a, &b, algorithm);
+    let res = matrix_multiplication(&a, &b, *algorithm);
     let end = Instant::now();
     match res {
         Ok(_) => Some(end.duration_since(start).as_millis()),
         Err(err) => {
-            println!(
-                "{} while executing algorithm: {}",
-                "Error".bright_red(),
-                err
-            );
-            error!("Error while executing algorithm: {}", err);
+            error!("In algorithm: {}. {}", algorithm, err);
             None
         }
     }
-}
-
-/// Runs one iteration of the benchmark suite.
-fn run_benchmark_iteration(algorithms: &[Algorithm], size: usize) -> HashMap<Algorithm, u128> {
-    let a = random_filled_square_matrix_of_size!(size);
-    let b = random_filled_square_matrix_of_size!(size);
-    let mut results = HashMap::with_capacity(algorithms.len());
-    for algorithm in algorithms {
-        let time = time_algorithm(*algorithm, &a, &b).unwrap_or_default();
-        println!("Finished algorithm: {:?} in {:?} ms", algorithm, time);
-        debug!("Finished algorithm: {:?} in {:?} ms", algorithm, time);
-        results.insert(*algorithm, time);
-    }
-    results
 }
 
 /// Runs the benchmark suite for a given number of iterations.
@@ -51,14 +31,21 @@ fn run_benchmark(
     algorithms: &[Algorithm],
     iterations: usize,
     size: usize,
-) -> HashMap<Algorithm, Vec<u128>> {
-    let mut results: HashMap<Algorithm, Vec<u128>> = HashMap::with_capacity(algorithms.len());
+) -> Vec<(Algorithm, Vec<u128>)> {
+    let mut results: Vec<(Algorithm, Vec<u128>)> = Vec::with_capacity(algorithms.len());
+
+    for algorithm in algorithms {
+        results.push((*algorithm, Vec::with_capacity(iterations)));
+    }
+
     for i in 0..iterations {
-        println!("Running iteration {}/{}", i + 1, iterations);
-        debug!("Running iteration {}/{}", i + 1, iterations);
-        let iteration_results = run_benchmark_iteration(algorithms, size);
-        for (algorithm, time) in iteration_results {
-            results.entry(algorithm).or_insert_with(Vec::new).push(time);
+        let a = random_filled_square_matrix_of_size!(size);
+        let b = random_filled_square_matrix_of_size!(size);
+        info!("Running iteration {}/{}", i + 1, iterations);
+        for (algorithm, times) in &mut results {
+            let time = time_algorithm(algorithm, &a, &b).unwrap_or_default();
+            times.push(time);
+            info!("Finished {} in {} ms", algorithm, time);
         }
     }
     results
@@ -75,12 +62,13 @@ fn benchmark_and_print_results(algorithms: &[Algorithm], iterations: usize, size
     print_title("Benchmarking!");
 
     let results = run_benchmark(&algorithms, iterations, size)
-        .iter()
+        .into_iter()
         .map(|(algorithm, times)| {
-            let average = times.iter().sum::<u128>() / iterations as u128;
-            (*algorithm, average)
+            let sum: u128 = times.iter().sum();
+            let avg = sum / times.len() as u128;
+            (algorithm, avg)
         })
-        .collect::<HashMap<_, _>>();
+        .collect::<Vec<_>>();
 
     print_title("Benchmark Results");
 
@@ -133,7 +121,6 @@ pub fn tiling_benchmark(cli: &Tiling) {
     let tiles = match parse_cli_tiles(&cli.tiles) {
         Ok(tiles) => tiles,
         Err(err) => {
-            println!("{}", err);
             error!("{}", err);
             return;
         }

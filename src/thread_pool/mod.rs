@@ -1,4 +1,4 @@
-use log::info;
+use log::debug;
 use std::cmp::min_by;
 use std::num::NonZeroUsize;
 use std::sync::mpsc;
@@ -88,11 +88,11 @@ impl Worker {
 
             match message {
                 Message::NewJob(job) => {
-                    info!("Worker {} got a job; executing.", id);
+                    debug!("Worker {} got a job; executing.", id);
                     job();
                 }
                 Message::Terminate => {
-                    info!("Worker {} was told to terminate.", id);
+                    debug!("Worker {} was told to terminate.", id);
                     break;
                 }
             }
@@ -124,6 +124,8 @@ enum Message {
 
 #[cfg(test)]
 mod tests {
+    use log::info;
+
     use super::*;
     use std::time::Duration;
 

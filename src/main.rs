@@ -14,11 +14,13 @@ mod matrix_multiplication;
 mod thread_pool;
 
 fn main() {
+    env_logger::init_from_env(env_logger::Env::default().default_filter_or("info"));
+
     let cli = Cli::parse();
 
     match &cli.subcommands {
         Some(cli::Commands::OsThreads) => {
-            print!(
+            println!(
                 "number of os threads: {}",
                 thread::available_parallelism().unwrap()
             );
