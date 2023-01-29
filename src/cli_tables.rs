@@ -25,3 +25,12 @@ pub fn print_args_table(elements: Vec<Vec<CellStruct>>) {
     ]);
     print_table(table);
 }
+
+/// Prints the table with the benchmark results to the console.
+pub fn print_benchmark_results_table(elements: Vec<Vec<CellStruct>>) {
+    let table = elements.table().title(vec![
+        "Algorithm".cell().bold(true),
+        "Average time (ms)".cell().bold(true),
+    ]);
+    print_table(table);
+}

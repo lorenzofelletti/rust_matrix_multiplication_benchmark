@@ -14,7 +14,11 @@ const MAX_ABS_VALUE_DEFAULT: i32 = 11; // 11 results in a matrix with values fro
 /// # Panics
 ///
 /// Panics if `max_abs_value` is less than 1
-pub fn generate_square_matrix_of_size(size: usize, random_values: bool, max_abs_value: Option<i32>) -> Vec<Vec<i32>> {
+pub fn generate_square_matrix_of_size(
+    size: usize,
+    random_values: bool,
+    max_abs_value: Option<i32>,
+) -> Vec<Vec<i32>> {
     let mut matrix = Vec::with_capacity(size);
 
     let modulo = max_abs_value.unwrap_or(MAX_ABS_VALUE_DEFAULT);
@@ -55,7 +59,11 @@ macro_rules! random_filled_square_matrix_of_size {
         $crate::matrix_multiplication::generate::generate_square_matrix_of_size($size, true, None)
     };
     ($size: expr, $max_abs_value: expr) => {
-        $crate::matrix_multiplication::generate::generate_square_matrix_of_size($size, true, Some($max_abs_value))
+        $crate::matrix_multiplication::generate::generate_square_matrix_of_size(
+            $size,
+            true,
+            Some($max_abs_value),
+        )
     };
 }
 
@@ -121,6 +129,7 @@ mod tests {
         let max_abs_value = -1;
         std::panic::catch_unwind(|| {
             let _matrix = random_filled_square_matrix_of_size!(10, max_abs_value);
-        }).expect_err("Should panic");
+        })
+        .expect_err("Should panic");
     }
 }
